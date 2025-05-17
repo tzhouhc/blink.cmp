@@ -180,6 +180,11 @@ up before returning to normal mode, and `<s-cr>` gives you a new binding to
 accept and return to normal mode directly.
 
 ```lua
+local function back_to_normal()
+  vim.api.nvim_feedkeys(
+    vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'n', true)
+end
+
 local function cancel_and_exit(cmp)
   return cmp.cancel({ callback = back_to_normal })
 end
@@ -358,6 +363,117 @@ completion = {
     }
   }
 }
+```
+
+### Colored Block for Completion Kind
+
+This code will take all available `BlinkCmpKind*` highlight colors and
+invert them.
+
+
+
+```lua
+-- Put these code somewhere such that it gets loaded -- you can put it in
+-- the config function of blink-cmp, or you can put it somewhere and `require`
+-- it yourself after blink is loaded.
+local function get_hg_field(group_name, field)
+  local hl_info = vim.api.nvim_get_hl(0, { name = group_name })
+  if hl_info and hl_info[field] then
+    return string.format("#%06x", hl_info[field])
+  else
+    return nil
+  end
+end
+
+local function fg_by_hlgroup(group_name)
+  return get_hg_field(group_name, "fg")
+end
+
+local function bg_by_hlgroup(group_name)
+  return get_hg_field(group_name, "bg")
+end
+
+-- You can also manually set bg if you like some other color for the inverted
+-- color blocks.
+local bg = bg_by_hlgroup("Pmenu")
+if not bg then
+  return
+end
+
+-- completion colors
+for _, name in pairs(vim.fn.getcompletion('BlinkCmpKind*', 'highlight')) do
+  local fg = fg_by_hlgroup(name)
+  if fg then
+    vim.api.nvim_set_hl(0, name, { bg = fg, fg = bg })
+  end
+end
+```
+
+Recommended draw columns setup to go with:
+
+```lua
+local kind_map = {
+  -- Some have spaces added to help align vertically
+  Variable = "Var ",
+  Function = "Func",
+  Snippet = "Snip",
+  Property = "Prty",
+  Keyword = "Kwrd",
+  Class = "Cls ",
+  Color = "Colr",
+  Event = "Evnt",
+  Field = "Fld ",
+  Value = "Val ",
+  Folder = "Fdr ",
+  Method = "Mtd ",
+  Module = "Mdl ",
+  Struct = "Strt",
+  Copilot = "Cplt",
+  Constant = "Cons",
+  Operator = "Oprt",
+  Interface = "Intf",
+  Reference = "Ref ",
+  EnumMember = "Enum",
+  Constructor = "Cons",
+  TypeParameter = "Type",
+}
+
+local function kind_icon_text(ctx)
+  return " " .. ctx.kind_icon .. " "
+end
+
+local function kind_text(ctx)
+  -- kind_map is if you want to have custom names for the completion kinds.
+  -- you can just remove it along with the `or` entirely.
+  return (kind_map[ctx.kind] or ctx.kind) .. " "
+end
+
+local function kind_highlight(ctx)
+  -- high priority needed to not get overriden by the cursorline.
+  return { { group = ctx.kind_hl, priority = 20000 } }
+end
+
+...
+
+draw = {
+  padding = { 0, 1 },  -- this makes the color block starts immediately on the
+                       -- left side
+  columns = { { "kind_icon", "kind" }, { "label", gap = 1 }, { "source_name" } },
+  -- includes "kind" as well since the color block might look a bit short
+  -- otherwise?
+  components = {
+    kind_icon = {
+      text = kind_icon_text,
+    },
+    kind = {
+      text = kind_text,
+      highlight = kind_highlight,
+    },
+    label = {
+      ...  -- your custom label, if any
+    },
+  },
+},
 ```
 
 ## Sources
