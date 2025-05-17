@@ -166,6 +166,39 @@ sources.providers.lsp.override.get_trigger_characters = function(self)
 end
 ```
 
+### Exit Insert Mode after Accept/Cancel
+
+The scenario is when you have `auto_insert = true` so that you can just usually
+press `<space>` or `(` to accept completions, but sometimes might want to
+accept/cancel completion and get out of insert mode directly, and have blink
+properly clear the auto-inserted text. As is, `<cr>` will accept current
+selection but remain in insert mode; `<esc>` will exit insert mode but will not
+cleanup the auto-insert.
+
+Below is how you could configure so that `<esc>` cleans
+up before returning to normal mode, and `<s-cr>` gives you a new binding to
+accept and return to normal mode directly.
+
+```lua
+local function cancel_and_exit(cmp)
+  return cmp.cancel({ callback = back_to_normal })
+end
+
+local function accept_and_exit(cmp)
+  return cmp.accept({ callback = back_to_normal })
+end
+
+...
+
+keymap = {
+  ['<esc>'] = {
+    cancel_and_exit,
+    'fallback',
+  },
+  ['<s-cr>'] = { accept_and_exit, 'fallback' },
+},
+```
+
 
 ## Fuzzy (sorting/filtering)
 
